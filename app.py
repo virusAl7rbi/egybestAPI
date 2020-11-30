@@ -1,10 +1,12 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 from bs4 import BeautifulSoup
 import requests
 import json
 import re
 
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__)
+CORS(app)
 
 def get_all_episode(url):
     base_url = 'https://nero.egybest.site'
@@ -25,6 +27,7 @@ def get_all_episode(url):
                 "rate": str(rate)
             })
     return e_urls
+
 
 @app.route('/search')
 def main():
@@ -50,7 +53,7 @@ def main():
             time = soup.find_all('td')[10].text
 
             data = {
-                "name": titel,
+                "title": titel,
                 "image": image,
                 "type": _type,
                 "rate": rate,
@@ -61,7 +64,7 @@ def main():
         elif url.split("/")[3] == "series":
             soup = BeautifulSoup(requests.get(url).text, 'lxml')
             sessons = soup.find_all('div', {'class': 'contents movies_small'})
-            result = []
+            _type = url.split("/")[3]
             for i in sessons:
                 urls = i.find_all('a', {'class': 'movie'})
                 for x in urls:
@@ -69,14 +72,14 @@ def main():
                         s_num = x['href'].split('/')[4].split('-season-')[1].split('-')[0]
                         result.append({
                             "season": str(s_num),
+                            "type": _type,
                             "episodes": get_all_episode(x['href']),
                             "title": x.find('img')['alt'],
                             "url": x['href'],
                             "image": "https:" + x.find('img')['src'],
                         })
+    return jsonify(result)
 
-    if str(request.args.get('format')) == 'json':
-        return jsonify(result)
-    elif str(request.args.get('format')) == 'html':
-        return render_template('index.html', results=result)
-app.run()
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port='80')
